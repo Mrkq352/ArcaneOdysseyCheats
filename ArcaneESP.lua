@@ -365,7 +365,7 @@ local function toggleESP()
         end
         State.trackedObjects = {}
     end
-enda
+end
 -- Main initialization
 local function init()
     if not workspace:FindFirstChild("Map") then
