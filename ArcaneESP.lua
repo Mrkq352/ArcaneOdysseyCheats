@@ -13,7 +13,7 @@ end
 local CONFIG = {
     ENABLED = false,
     TOGGLE_KEY = Enum.KeyCode.F15,
-    CLEAR_MARKERS_KEY = Enum.KeyCode.F7, -- Key to clear all markers
+    CLEAR_MARKERS_KEY = {Enum.KeyCode.LeftControl, Enum.KeyCode.F15}, -- Key combination to clear all markers (Ctrl + F15)
     SCAN_INTERVAL = 5, -- Scan every 5 seconds
     MAX_DISTANCE = 1000, -- Maximum distance for ESP to show (in studs)
     COLORS = {
@@ -26,7 +26,8 @@ local CONFIG = {
         SHELL = Color3.fromRGB(255, 224, 189), -- Skin
         BRONZE_SEALED_CHEST = Color3.fromRGB(212, 169, 107), -- Bronze
         DARK_SEALED_CHEST = Color3.fromRGB(75, 0, 130), -- Dark purple
-        NIMBUS_SEALED_CHEST = Color3.fromRGB(135, 206, 235) -- Sky blue
+        NIMBUS_SEALED_CHEST = Color3.fromRGB(135, 206, 235), -- Sky blue
+        GOLDEN = Color3.fromRGB(255, 215, 0) -- Gold color for golden fruits/herbs
     }
 }
 
@@ -195,7 +196,7 @@ local function handleNewObject(object)
     local objectName = object.Name:lower()
     local parent = object.Parent
     local parentName = parent and parent.Name:lower() or ""
-    local isGolden = object:FindFirstChild("Golden") ~= nil
+    local isGolden = object:FindFirstChild("Golden") ~= nil -- Check for the "Golden" child
     local itemName = getItemName(object)
 
     local visualConfig
@@ -215,7 +216,13 @@ local function handleNewObject(object)
         visualConfig = {color = CONFIG.COLORS.NIMBUS_SEALED_CHEST, label = "Nimbus Sealed Chest"}
     else
         -- Other objects use the ObjectText from the ProximityPrompt
-        visualConfig = {color = CONFIG.COLORS[objectName:upper()] or Color3.new(1, 1, 1), label = itemName}
+        if objectName:match("fruit") then
+            visualConfig = {color = isGolden and CONFIG.COLORS.GOLDEN or CONFIG.COLORS.FRUIT, label = itemName}
+        elseif objectName:match("herb") then
+            visualConfig = {color = isGolden and CONFIG.COLORS.GOLDEN or CONFIG.COLORS.HERB, label = itemName}
+        else
+            visualConfig = {color = CONFIG.COLORS[objectName:upper()] or Color3.new(1, 1, 1), label = itemName}
+        end
     end
 
     if visualConfig then
@@ -267,9 +274,13 @@ local function init()
     end
     
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if input.KeyCode == CONFIG.TOGGLE_KEY and not gameProcessed then
+        -- Toggle ESP with F15
+        if input.KeyCode == CONFIG.TOGLE_KEY and not gameProcessed then
             toggleESP()
-        elseif input.KeyCode == CONFIG.CLEAR_MARKERS_KEY and not gameProcessed then
+        end
+
+        -- Clear markers with Ctrl + F15
+        if input.KeyCode == CONFIG.CLEAR_MARKERS_KEY[2] and UserInputService:IsKeyDown(CONFIG.CLEAR_MARKERS_KEY[1]) and not gameProcessed then
             clearAllMarkers()
         end
     end)
@@ -303,4 +314,4 @@ end
 init()
 print("ESP Script loaded successfully")
 print("Press F15 to toggle ESP")
-print("Press F7 to clear all markers")
+print("Press Ctrl + F15 to clear all markers")
