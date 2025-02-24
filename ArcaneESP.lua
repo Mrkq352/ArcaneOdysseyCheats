@@ -1,4 +1,3 @@
--- ESP Script
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -13,20 +12,21 @@ end
 -- Configuration
 local CONFIG = {
     ENABLED = false,
-    MAX_DISTANCE = 1000,
-    BATCH_SIZE = 100,  -- Number of objects to process per batch
-    BATCH_DELAY = 0.03,  -- Delay between batches in seconds
     TOGGLE_KEY = Enum.KeyCode.F15,
+    CLEAR_MARKERS_KEY = Enum.KeyCode.F7, -- Key to clear all markers
+    SCAN_INTERVAL = 5, -- Scan every 5 seconds
+    MAX_DISTANCE = 1000, -- Maximum distance for ESP to show (in studs)
     COLORS = {
-        FRUIT = Color3.fromRGB(0, 255, 0),
-        GOLDEN = Color3.fromRGB(255, 223, 0),
-        HERB = Color3.fromRGB(0, 255, 0),
-        TREASURE_CHEST = Color3.fromRGB(139, 69, 19),
-        SILVER_CHEST = Color3.fromRGB(176, 224, 230),
-        GOLDEN_CHEST = Color3.fromRGB(255, 223, 0),
-        BRONZE_SEALED_CHEST = Color3.fromRGB(212,169,107),  -- Bronze color
-        NIMBUS_SEALED_CHEST = Color3.fromRGB(135, 206, 235), -- Light blue color
-        DARK_SEALED_CHEST = Color3.fromRGB(75, 0, 130) --Dark sea chest color
+        GOLDEN_CHEST = Color3.fromRGB(255, 223, 0), -- Light gold
+        SILVER_CHEST = Color3.fromRGB(176, 224, 230), -- Blueish silver
+        TREASURE_CHEST = Color3.fromRGB(139, 69, 19), -- Green brown
+        COCONUT = Color3.fromRGB(255, 255, 255), -- White
+        FRUIT = Color3.fromRGB(255, 165, 0), -- Orange
+        HERB = Color3.fromRGB(0, 255, 0), -- Green
+        SHELL = Color3.fromRGB(255, 224, 189), -- Skin
+        BRONZE_SEALED_CHEST = Color3.fromRGB(212, 169, 107), -- Bronze
+        DARK_SEALED_CHEST = Color3.fromRGB(75, 0, 130), -- Dark purple
+        NIMBUS_SEALED_CHEST = Color3.fromRGB(135, 206, 235) -- Sky blue
     }
 }
 
@@ -36,12 +36,10 @@ local State = {
     playerGui = player:WaitForChild("PlayerGui"),
     trackedObjects = {},
     playerPosition = Vector3.new(0, 0, 0),
-    scanInProgress = false,
-    scanQueue = {},
-    lastScanTime = 0,
-    scanInterval = 1  -- Scan every 1 second
+    scanInProgress = false
 }
 
+-- Helper functions
 local function updatePlayerPosition()
     local character = player.Character
     if character then
@@ -56,7 +54,6 @@ end
 
 local function getObjectDistance(object)
     if not object:IsA("BasePart") then 
-        -- If the object is a model, try to get its primary part or first child that's a BasePart
         if object:IsA("Model") then
             local primaryPart = object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart")
             if primaryPart then
@@ -80,109 +77,64 @@ local function cleanupAdornment(object)
     State.trackedObjects[object] = nil
 end
 
-local function createNotification(message)
-    if not State.playerGui then return end
-    
-    local screenGui = Instance.new("ScreenGui")
-    local notification = Instance.new("TextLabel")
-    
-    notification.Size = UDim2.new(0, 300, 0, 50)
-    notification.Position = UDim2.new(0.5, -150, 0.1, 0)
-    notification.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    notification.BackgroundTransparency = 0.5
-    notification.Text = message
-    notification.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notification.TextScaled = true
-    notification.Parent = screenGui
-    screenGui.Parent = State.playerGui
-
-    task.delay(1, function()
-        notification.TextTransparency = 1
-        task.wait(0.5)
-        screenGui:Destroy()
-    end)
+local function clearAllMarkers()
+    for object, _ in pairs(State.adornments) do
+        cleanupAdornment(object)
+    end
+    State.trackedObjects = {}
+    print("All markers cleared.")
 end
 
 local function getItemName(object)
-    local prompt = object:FindFirstChild("ProximityPrompt")
-    
-    if not prompt then
-        for _, child in ipairs(object:GetChildren()) do
-            if child:IsA("ProximityPrompt") then
-                prompt = child
-                break
-            end
-        end
+    -- Check for a ProximityPrompt named "Prompt"
+    local prompt = object:FindFirstChild("Prompt")
+    if prompt and prompt:IsA("ProximityPrompt") then
+        -- Use the ObjectText if it's not empty, otherwise fall back to the object's name
+        return prompt.ObjectText ~= "" and prompt.ObjectText or object.Name
     end
-    
-    if not prompt and object.Parent then
-        prompt = object.Parent:FindFirstChild("ProximityPrompt")
-    end
-    
-    if prompt then
-        return prompt.ObjectText ~= "" and prompt.ObjectText or prompt.ActionText
-    end
-    
-    if object.Parent and object.Parent.Name:lower():match("chest") then
-        return object.Parent.Name
-    end
-    
+    -- If no ProximityPrompt is found, return the object's name
     return object.Name
 end
+
 local function shouldTrackObject(object)
     if not (object:IsA("BasePart") or object:IsA("Model")) then return false end
-    
-    -- Check distance first to avoid unnecessary processing
-    local distance = getObjectDistance(object)
-    if distance > CONFIG.MAX_DISTANCE then return false end
     
     local objectName = object.Name:lower()
     local parent = object.Parent
     local parentName = parent and parent.Name:lower() or ""
     
-    if objectName:match("herbspawn") or objectName:match("fruitspawn") then
+    -- Skip spawners and parts named "Lid" or "Base"
+    if objectName:match("herbspawn") or objectName:match("fruitspawn") or objectName:match("lid") or objectName:match("base") then
         return false
     end
     
-    if objectName:match("^%w+ chest$") or parentName:match("^%w+ chest$") then
-        if parent then
-            return parent:FindFirstChild("ProximityPrompt") ~= nil or
-                   parent:FindFirstChild("Base") ~= nil
-        end
+    -- Track specific objects
+    if objectName:match("chest") or parentName:match("chest") then
+        return true
+    elseif objectName:match("coconut") or objectName:match("fruit") or objectName:match("herb") or objectName:match("shell") then
+        return true
     end
     
-    return objectName:match("^fruit$") or
-           objectName:match("^herb$")
+    return false
 end
 
 local function isObjectOpened(object)
-    return object:FindFirstChild("Open") ~= nil
+    local openValue = object:FindFirstChild("Open")
+    if openValue and openValue:IsA("BoolValue") then
+        return openValue.Value
+    end
+    return false
 end
 
 local function createVisualElements(object, color, label)
-    if not CONFIG.ENABLED then return end
     if not object or not object.Parent then return end
-    
-    local distance = getObjectDistance(object)
-    if distance > CONFIG.MAX_DISTANCE then
-        cleanupAdornment(object)
-        return
-    end
 
     local existing = State.adornments[object]
-    if existing and existing.box and existing.box.Parent and existing.billboard and existing.billboard.Parent then
-        existing.billboard.Enabled = CONFIG.ENABLED
-        existing.box.Visible = CONFIG.ENABLED
-        
-        -- Update distance in existing billboard
-        local textLabel = existing.billboard:FindFirstChild("TextLabel")
-        if textLabel then
-            textLabel.Text = string.format("%s\n%.1fm", label, distance)
-        end
+    if existing then
+        -- Update the distance text
+        existing.billboard.TextLabel.Text = label .. " (" .. math.floor(getObjectDistance(object)) .. "m)"
         return
     end
-
-    cleanupAdornment(object)
 
     local boxAdornment = Instance.new("BoxHandleAdornment")
     boxAdornment.Adornee = object
@@ -191,7 +143,7 @@ local function createVisualElements(object, color, label)
     boxAdornment.Transparency = 0.3
     boxAdornment.AlwaysOnTop = true
     boxAdornment.ZIndex = 5
-    boxAdornment.Visible = CONFIG.ENABLED
+    boxAdornment.Visible = true
     boxAdornment.Parent = object
 
     local billboard = Instance.new("BillboardGui")
@@ -199,17 +151,17 @@ local function createVisualElements(object, color, label)
     billboard.Size = UDim2.new(0, 100, 0, 40)
     billboard.StudsOffset = Vector3.new(0, 3, 0)
     billboard.AlwaysOnTop = true
-    billboard.Enabled = CONFIG.ENABLED
-    
+    billboard.Enabled = true
+
     local textLabel = Instance.new("TextLabel")
     textLabel.Size = UDim2.new(1, 0, 1, 0)
     textLabel.BackgroundTransparency = 1
-    textLabel.Text = string.format("%s\n%.1fm", label, distance)
+    textLabel.Text = label .. " (" .. math.floor(getObjectDistance(object)) .. "m)"
     textLabel.TextColor3 = color
     textLabel.TextSize = 16
     textLabel.Font = Enum.Font.SourceSansBold
     textLabel.Parent = billboard
-    
+
     billboard.Parent = State.playerGui
 
     State.adornments[object] = {
@@ -220,7 +172,16 @@ end
 
 local function handleNewObject(object)
     if not shouldTrackObject(object) then return end
-    if isObjectOpened(object) then return end
+    if isObjectOpened(object) then
+        cleanupAdornment(object)
+        return
+    end
+
+    local distance = getObjectDistance(object)
+    if distance > CONFIG.MAX_DISTANCE then
+        cleanupAdornment(object)
+        return
+    end
 
     local objectName = object.Name:lower()
     local parent = object.Parent
@@ -230,49 +191,22 @@ local function handleNewObject(object)
 
     local visualConfig
 
-    -- Check for sealed chests first
-    if parent and parent.Name == "Temporary" then
-        if objectName:match("bronze sealed chest") then
-            visualConfig = {
-                color = CONFIG.COLORS.BRONZE_SEALED_CHEST,
-                label = itemName
-            }
-        elseif objectName:match("nimbus sealed chest") then
-            visualConfig = {
-                color = CONFIG.COLORS.NIMBUS_SEALED_CHEST,
-                label = itemName
-            }
-        elseif objectName:match("dark sealed chest") then
-            visualConfig = {
-                color = CONFIG.COLORS.DARK_SEALED_CHEST,
-                label = itemName
-            }
-        end
-    elseif objectName:match("^treasure") or parentName:match("^treasure") then
-        local chestType = "Treasure Chest"
-        local color = CONFIG.COLORS.TREASURE_CHEST
-        
-        if objectName:match("silver") or parentName:match("silver") then
-            chestType = "Silver Chest"
-            color = CONFIG.COLORS.SILVER_CHEST
-        elseif objectName:match("golden") or parentName:match("golden") then
-            chestType = "Golden Chest"
-            color = CONFIG.COLORS.GOLDEN_CHEST
-        end
-        
-        visualConfig = {color = color, label = chestType}
+    -- Chests use predefined labels
+    if objectName:match("golden chest") or parentName:match("golden chest") then
+        visualConfig = {color = CONFIG.COLORS.GOLDEN_CHEST, label = "Golden Chest"}
+    elseif objectName:match("silver chest") or parentName:match("silver chest") then
+        visualConfig = {color = CONFIG.COLORS.SILVER_CHEST, label = "Silver Chest"}
+    elseif objectName:match("treasure chest") or parentName:match("treasure chest") then
+        visualConfig = {color = CONFIG.COLORS.TREASURE_CHEST, label = "Treasure Chest"}
+    elseif objectName:match("bronze sealed chest") then
+        visualConfig = {color = CONFIG.COLORS.BRONZE_SEALED_CHEST, label = "Bronze Sealed Chest"}
+    elseif objectName:match("dark sealed chest") then
+        visualConfig = {color = CONFIG.COLORS.DARK_SEALED_CHEST, label = "Dark Sealed Chest"}
+    elseif objectName:match("nimbus sealed chest") then
+        visualConfig = {color = CONFIG.COLORS.NIMBUS_SEALED_CHEST, label = "Nimbus Sealed Chest"}
     else
-        if objectName:match("fruit") then
-            visualConfig = {
-                color = isGolden and CONFIG.COLORS.GOLDEN or CONFIG.COLORS.FRUIT,
-                label = itemName
-            }
-        elseif objectName:match("herb") then
-            visualConfig = {
-                color = isGolden and CONFIG.COLORS.GOLDEN or CONFIG.COLORS.HERB,
-                label = itemName
-            }
-        end
+        -- Other objects use the ObjectText from the ProximityPrompt
+        visualConfig = {color = CONFIG.COLORS[objectName:upper()] or Color3.new(1, 1, 1), label = itemName}
     end
 
     if visualConfig then
@@ -281,91 +215,41 @@ local function handleNewObject(object)
     end
 end
 
-local function processBatch(objects, startIndex)
-    if not CONFIG.ENABLED then return end
-    
-    local endIndex = math.min(startIndex + CONFIG.BATCH_SIZE, #objects)
-    
-    for i = startIndex, endIndex do
-        local object = objects[i]
-        if object and object.Parent then
-            handleNewObject(object)
-        end
-    end
-    
-    if endIndex < #objects then
-        -- Schedule next batch
-        task.wait(CONFIG.BATCH_DELAY)
-        processBatch(objects, endIndex + 1)
-    else
-        State.scanInProgress = false
-    end
-end
-
 local function startScan()
-    if State.scanInProgress then return end
-
-    local currentTime = tick()
-    if currentTime - State.lastScanTime < State.scanInterval then return end
-    State.lastScanTime = currentTime
-
+    if State.scanInProgress or not CONFIG.ENABLED then return end
     State.scanInProgress = true
-    local objectsToScan = {}
 
-    -- Ensure workspace.Map exists before scanning
     local map = workspace:FindFirstChild("Map")
     if not map then 
         State.scanInProgress = false
         return 
     end
 
-    -- Scan all existing objects inside workspace.Map
+    -- Update player position before scanning
+    updatePlayerPosition()
+
     for _, object in ipairs(map:GetDescendants()) do
-        if shouldTrackObject(object) then
-            table.insert(objectsToScan, object)
-        end
+        handleNewObject(object)
     end
 
-    -- Ensure Temporary folder inside Map is scanned
-    local temporary = map:FindFirstChild("Temporary")
-    if temporary then
-        for _, object in ipairs(temporary:GetChildren()) do
-            if shouldTrackObject(object) then
-                table.insert(objectsToScan, object)
-            end
-        end
-    end
-
-    -- Process all found objects
-    if #objectsToScan > 0 then
-        processBatch(objectsToScan, 1)
-    else
-        State.scanInProgress = false
-    end
+    State.scanInProgress = false
 end
-
 
 local function toggleESP()
     CONFIG.ENABLED = not CONFIG.ENABLED
-    createNotification(CONFIG.ENABLED and "ESP Enabled" or "ESP Disabled")
-    
     if CONFIG.ENABLED then
-        -- Clear any old ESP remnants before rescanning
-        for object in pairs(State.adornments) do
-            cleanupAdornment(object)
+        -- Perform an immediate scan
+        startScan()
+        -- Start periodic scans
+        while CONFIG.ENABLED do
+            wait(CONFIG.SCAN_INTERVAL)
+            if CONFIG.ENABLED then
+                startScan()
+            end
         end
-        State.trackedObjects = {}
-
-        -- Run a full scan to detect all objects, even old ones
-        startScan()  -- This will initiate the full scan when ESP is enabled
-    else
-        -- Clear ESP when disabling
-        for object in pairs(State.adornments) do
-            cleanupAdornment(object)
-        end
-        State.trackedObjects = {}
     end
 end
+
 -- Main initialization
 local function init()
     if not workspace:FindFirstChild("Map") then
@@ -376,41 +260,33 @@ local function init()
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if input.KeyCode == CONFIG.TOGGLE_KEY and not gameProcessed then
             toggleESP()
+        elseif input.KeyCode == CONFIG.CLEAR_MARKERS_KEY and not gameProcessed then
+            clearAllMarkers()
         end
     end)
 
     workspace.Map.DescendantAdded:Connect(handleNewObject)
     workspace.Map.DescendantRemoving:Connect(cleanupAdornment)
 
-    -- Timer-based scanning
-   spawn(function()
-    while true do
-        if CONFIG.ENABLED then
-            startScan()
-            updatePlayerPosition()
-            
-            -- Update existing ESP
-            local existingObjects = {}
-            for object, config in pairs(State.trackedObjects) do
-                table.insert(existingObjects, {object = object, config = config})
-            end
-            
-            -- Process existing objects in batches too
-            for i = 1, #existingObjects, CONFIG.BATCH_SIZE do
-                local endIndex = math.min(i + CONFIG.BATCH_SIZE - 1, #existingObjects)
-                for j = i, endIndex do
-                    local data = existingObjects[j]
-                    if data.object and data.object.Parent then
-                        createVisualElements(data.object, data.config.color, data.config.label)
+    -- Continuously update distances for existing markers, even when ESP is toggled off
+    RunService.Heartbeat:Connect(function()
+        updatePlayerPosition()
+        for object, config in pairs(State.trackedObjects) do
+            if object and object.Parent then
+                local distance = getObjectDistance(object)
+                if distance > CONFIG.MAX_DISTANCE then
+                    cleanupAdornment(object)
+                else
+                    if isObjectOpened(object) then
+                        cleanupAdornment(object)
                     else
-                        cleanupAdornment(data.object)
+                        createVisualElements(object, config.color, config.label)
                     end
                 end
-                task.wait(CONFIG.BATCH_DELAY)
+            else
+                cleanupAdornment(object)
             end
         end
-        wait(1.5)  -- Increased main loop interval to 1.5 seconds
-    end
     end)
 end
 
@@ -418,3 +294,4 @@ end
 init()
 print("ESP Script loaded successfully")
 print("Press F15 to toggle ESP")
+print("Press F7 to clear all markers")
