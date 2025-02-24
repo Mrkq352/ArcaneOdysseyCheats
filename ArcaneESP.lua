@@ -21,7 +21,7 @@ local CONFIG = {
         SILVER_CHEST = Color3.fromRGB(176, 224, 230), -- Blueish silver
         TREASURE_CHEST = Color3.fromRGB(139, 69, 19), -- Green brown
         COCONUT = Color3.fromRGB(255, 255, 255), -- White
-        FRUIT = Color3.fromRGB(255, 65, 0), -- Red
+        FRUIT = Color3.fromRGB(255, 65, 0), -- Bright red
         HERB = Color3.fromRGB(0, 255, 0), -- Green
         SHELL = Color3.fromRGB(255, 224, 189), -- Skin
         BRONZE_SEALED_CHEST = Color3.fromRGB(212, 169, 107), -- Bronze
@@ -78,9 +78,18 @@ local function cleanupAdornment(object)
 end
 
 local function clearAllMarkers()
-    for object, _ in pairs(State.adornments) do
+    -- Create a copy of the adornments table to avoid modifying it while iterating
+    local adornmentsCopy = {}
+    for object, adornmentGroup in pairs(State.adornments) do
+        adornmentsCopy[object] = adornmentGroup
+    end
+
+    -- Clean up all adornments in the copy
+    for object, _ in pairs(adornmentsCopy) do
         cleanupAdornment(object)
     end
+
+    -- Clear the trackedObjects table
     State.trackedObjects = {}
     print("All markers cleared.")
 end
