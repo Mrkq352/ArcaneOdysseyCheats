@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Initialize core services first
 local player = Players.LocalPlayer
@@ -41,6 +42,14 @@ local State = {
 }
 
 -- Helper functions
+local function showNotification(message)
+    StarterGui:SetCore("SendNotification", {
+        Title = "ESP System",
+        Text = message,
+        Duration = 3
+    })
+end
+
 local function updatePlayerPosition()
     local character = player.Character
     if character then
@@ -92,7 +101,7 @@ local function clearAllMarkers()
 
     -- Clear the trackedObjects table
     State.trackedObjects = {}
-    print("All markers cleared.")
+    showNotification("All markers cleared.")
 end
 
 local function getItemName(object)
@@ -254,6 +263,7 @@ end
 local function toggleESP()
     CONFIG.ENABLED = not CONFIG.ENABLED
     if CONFIG.ENABLED then
+        showNotification("ESP Enabled")
         -- Perform an immediate scan
         startScan()
         -- Start periodic scans
@@ -263,6 +273,8 @@ local function toggleESP()
                 startScan()
             end
         end
+    else
+        showNotification("ESP Disabled")
     end
 end
 
@@ -275,7 +287,7 @@ local function init()
     
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         -- Toggle ESP with F15
-        if input.KeyCode == CONFIG.TOGLE_KEY and not gameProcessed then
+        if input.KeyCode == CONFIG.TOGGLE_KEY and not gameProcessed then
             toggleESP()
         end
 
