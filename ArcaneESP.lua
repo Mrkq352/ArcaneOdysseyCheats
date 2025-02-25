@@ -14,7 +14,7 @@ end
 local CONFIG = {
     ENABLED = false,
     TOGGLE_KEY = Enum.KeyCode.F15,
-    CLEAR_MARKERS_KEY = {Enum.KeyCode.LeftControl, Enum.KeyCode.F15}, -- Key combination to clear all markers (Ctrl + F15)
+    CLEAR_MARKERS_KEY = Enum.KeyCode.F7, -- Single key to clear all markers (F7)
     SCAN_INTERVAL = 5, -- Scan every 5 seconds
     MAX_DISTANCE = 1000, -- Maximum distance for ESP to show (in studs)
     COLORS = {
@@ -291,8 +291,8 @@ local function init()
             toggleESP()
         end
 
-        -- Clear markers with Ctrl + F15
-        if input.KeyCode == CONFIG.CLEAR_MARKERS_KEY[2] and UserInputService:IsKeyDown(CONFIG.CLEAR_MARKERS_KEY[1]) and not gameProcessed then
+        -- Clear markers with F7
+        if input.KeyCode == CONFIG.CLEAR_MARKERS_KEY and not gameProcessed then
             clearAllMarkers()
         end
     end)
@@ -326,4 +326,4 @@ end
 init()
 print("ESP Script loaded successfully")
 print("Press F15 to toggle ESP")
-print("Press Ctrl + F15 to clear all markers")
+print("Press F7 to clear all markers")
