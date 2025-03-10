@@ -17,6 +17,8 @@ local DEFAULT_CONFIG = {
     SCAN_INTERVAL = 5, -- Scan every 5 seconds
     MIN_DISTANCE = 0, -- Minimum distance for ESP to show (in studs)
     MAX_DISTANCE = 1000, -- Maximum distance for ESP to show (in studs)
+    SCAN_KEYBIND = Enum.KeyCode.LeftBracket, -- Key to toggle scanning
+    VISIBILITY_KEYBIND = Enum.KeyCode.RightBracket, -- Key to toggle visibility
     COLORS = {
         GOLDEN_CHEST = Color3.fromRGB(255, 223, 0), -- Light gold
         SILVER_CHEST = Color3.fromRGB(176, 224, 230), -- Blueish silver
@@ -37,7 +39,9 @@ local CONFIG = {
     TOGGLE_GUI_KEY = DEFAULT_CONFIG.TOGGLE_GUI_KEY,
     SCAN_INTERVAL = DEFAULT_CONFIG.SCAN_INTERVAL,
     MIN_DISTANCE = DEFAULT_CONFIG.MIN_DISTANCE,
-    MAX_DISTANCE = DEFAULT_CONFIG.MAX_DISTANCE
+    MAX_DISTANCE = DEFAULT_CONFIG.MAX_DISTANCE,
+    SCAN_KEYBIND = DEFAULT_CONFIG.SCAN_KEYBIND,
+    VISIBILITY_KEYBIND = DEFAULT_CONFIG.VISIBILITY_KEYBIND
 }
 
 -- State initialization
@@ -276,8 +280,8 @@ local function createGUI()
     screenGui.Parent = State.playerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 500, 0, 300) -- Wider frame for 2 columns
-    frame.Position = UDim2.new(0.5, -250, 0.5, -150)
+    frame.Size = UDim2.new(0, 500, 0, 400) -- Increased height to accommodate new keybind options
+    frame.Position = UDim2.new(0.5, -250, 0.5, -200)
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     frame.BorderSizePixel = 0
     frame.Visible = false
@@ -385,6 +389,47 @@ local function createGUI()
     keybindInput.TextSize = 14
     keybindInput.Parent = frame
 
+    -- New Keybind Options for Scanning and Visibility
+    local scanKeybindLabel = Instance.new("TextLabel")
+    scanKeybindLabel.Size = UDim2.new(0.4, 0, 0.05, 0)
+    scanKeybindLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
+    scanKeybindLabel.Text = "Scan Keybind: " .. tostring(CONFIG.SCAN_KEYBIND or "None")
+    scanKeybindLabel.BackgroundTransparency = 1
+    scanKeybindLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    scanKeybindLabel.Font = Enum.Font.SourceSansBold
+    scanKeybindLabel.TextSize = 14
+    scanKeybindLabel.Parent = frame
+
+    local scanKeybindInput = Instance.new("TextBox")
+    scanKeybindInput.Size = UDim2.new(0.4, 0, 0.05, 0)
+    scanKeybindInput.Position = UDim2.new(0.05, 0, 0.55, 0)
+    scanKeybindInput.PlaceholderText = "Press a key to set scan keybind"
+    scanKeybindInput.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    scanKeybindInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    scanKeybindInput.Font = Enum.Font.SourceSansBold
+    scanKeybindInput.TextSize = 14
+    scanKeybindInput.Parent = frame
+
+    local visibilityKeybindLabel = Instance.new("TextLabel")
+    visibilityKeybindLabel.Size = UDim2.new(0.4, 0, 0.05, 0)
+    visibilityKeybindLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
+    visibilityKeybindLabel.Text = "Visibility Keybind: " .. tostring(CONFIG.VISIBILITY_KEYBIND or "None")
+    visibilityKeybindLabel.BackgroundTransparency = 1
+    visibilityKeybindLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    visibilityKeybindLabel.Font = Enum.Font.SourceSansBold
+    visibilityKeybindLabel.TextSize = 14
+    visibilityKeybindLabel.Parent = frame
+
+    local visibilityKeybindInput = Instance.new("TextBox")
+    visibilityKeybindInput.Size = UDim2.new(0.4, 0, 0.05, 0)
+    visibilityKeybindInput.Position = UDim2.new(0.05, 0, 0.7, 0)
+    visibilityKeybindInput.PlaceholderText = "Press a key to set visibility keybind"
+    visibilityKeybindInput.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    visibilityKeybindInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    visibilityKeybindInput.Font = Enum.Font.SourceSansBold
+    visibilityKeybindInput.TextSize = 14
+    visibilityKeybindInput.Parent = frame
+
     -- Toggle scanning (like F15 before)
     scanButton.MouseButton1Click:Connect(function()
         State.scanningEnabled = not State.scanningEnabled
@@ -466,6 +511,54 @@ local function createGUI()
         end
     end)
 
+    -- Scan Keybind Customization
+    scanKeybindInput.FocusLost:Connect(function()
+        local key = scanKeybindInput.Text
+        local keyCode = Enum.KeyCode[key]
+        if keyCode then
+            CONFIG.SCAN_KEYBIND = keyCode
+            scanKeybindLabel.Text = "Scan Keybind: " .. tostring(CONFIG.SCAN_KEYBIND)
+            scanKeybindInput.Text = ""
+        else
+            scanKeybindInput.Text = ""
+        end
+    end)
+
+    -- Visibility Keybind Customization
+    visibilityKeybindInput.FocusLost:Connect(function()
+        local key = visibilityKeybindInput.Text
+        local keyCode = Enum.KeyCode[key]
+        if keyCode then
+            CONFIG.VISIBILITY_KEYBIND = keyCode
+            visibilityKeybindLabel.Text = "Visibility Keybind: " .. tostring(CONFIG.VISIBILITY_KEYBIND)
+            visibilityKeybindInput.Text = ""
+        else
+            visibilityKeybindInput.Text = ""
+        end
+    end)
+
+    -- Handle Keybinds for Scanning and Visibility
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+
+        if CONFIG.SCAN_KEYBIND and input.KeyCode == CONFIG.SCAN_KEYBIND then
+            State.scanningEnabled = not State.scanningEnabled
+            scanButton.Text = "Scanning: " .. (State.scanningEnabled and "ON" or "OFF")
+            scanButton.BackgroundColor3 = State.scanningEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+            if State.scanningEnabled then
+                startScan()
+            end
+        elseif CONFIG.VISIBILITY_KEYBIND and input.KeyCode == CONFIG.VISIBILITY_KEYBIND then
+            State.visibilityEnabled = not State.visibilityEnabled
+            visibilityButton.Text = "Visibility: " .. (State.visibilityEnabled and "ON" or "OFF")
+            visibilityButton.BackgroundColor3 = State.visibilityEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+            for _, adornmentGroup in pairs(State.adornments) do
+                adornmentGroup.box.Visible = State.visibilityEnabled
+                adornmentGroup.billboard.Enabled = State.visibilityEnabled
+            end
+        end
+    end)
+
     return screenGui, frame
 end
 
@@ -479,6 +572,24 @@ local function init()
     -- Create the GUI
     local gui, frame = createGUI()
 
+    -- Function to re-parent the GUI on respawn
+    local function handleRespawn()
+        -- Wait for the new PlayerGui to exist
+        local newPlayerGui = player:WaitForChild("PlayerGui")
+        gui.Parent = newPlayerGui -- Re-parent the GUI
+    end
+
+    -- Handle player respawn
+    player.CharacterAdded:Connect(function()
+        -- Update player position when the character respawns
+        updatePlayerPosition()
+        -- Re-parent the GUI
+        handleRespawn()
+    end)
+
+    -- Handle initial GUI parenting
+    handleRespawn()
+
     -- Toggle GUI visibility with F15
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if input.KeyCode == CONFIG.TOGGLE_GUI_KEY and not gameProcessed then
@@ -487,12 +598,7 @@ local function init()
         end
     end)
 
-    -- Handle player respawn
-    player.CharacterAdded:Connect(function()
-        -- Update player position when the character respawns
-        updatePlayerPosition()
-    end)
-
+    -- Handle new objects and cleanup
     workspace.Map.DescendantAdded:Connect(handleNewObject)
     workspace.Map.DescendantRemoving:Connect(cleanupAdornment)
 
