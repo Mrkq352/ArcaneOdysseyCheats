@@ -62,7 +62,7 @@ local State = {
     scanInProgress = false,
     scanningEnabled = false,
     visibilityEnabled = true, -- Visibility is enabled by default
-    guiVisible = false
+    gui = nil -- Tracks the GUI instance
 }
 
 -- Helper functions
@@ -299,7 +299,7 @@ local function createGUI()
     frame.Position = UDim2.new(0.5, -250, 0.5, -250)
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     frame.BorderSizePixel = 0
-    frame.Visible = false
+    frame.Visible = true
     frame.Parent = screenGui
 
     -- Column 1
@@ -604,26 +604,32 @@ local function createGUI()
     end)
 
     -- Handle Keybinds for Scanning and Visibility
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
 
-        if CONFIG.SCAN_KEYBIND and input.KeyCode == CONFIG.SCAN_KEYBIND then
-            State.scanningEnabled = not State.scanningEnabled
+    if CONFIG.SCAN_KEYBIND and input.KeyCode == CONFIG.SCAN_KEYBIND then
+        State.scanningEnabled = not State.scanningEnabled
+        if State.gui then
             scanButton.Text = "Scanning: " .. (State.scanningEnabled and "ON" or "OFF")
             scanButton.BackgroundColor3 = State.scanningEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-            if State.scanningEnabled then
-                startScan()
-            end
-        elseif CONFIG.VISIBILITY_KEYBIND and input.KeyCode == CONFIG.VISIBILITY_KEYBIND then
-            State.visibilityEnabled = not State.visibilityEnabled
+        end
+        if State.scanningEnabled then
+            startScan()
+        end
+    elseif CONFIG.VISIBILITY_KEYBIND and input.KeyCode == CONFIG.VISIBILITY_KEYBIND then
+        State.visibilityEnabled = not State.visibilityEnabled
+        if State.gui then
             visibilityButton.Text = "Visibility: " .. (State.visibilityEnabled and "ON" or "OFF")
             visibilityButton.BackgroundColor3 = State.visibilityEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-            for _, adornmentGroup in pairs(State.adornments) do
+        end
+        for _, adornmentGroup in pairs(State.adornments) do
+            if adornmentGroup.box and adornmentGroup.billboard then
                 adornmentGroup.box.Visible = State.visibilityEnabled
                 adornmentGroup.billboard.Enabled = State.visibilityEnabled
             end
         end
-    end)
+    end
+end)
 
     -- Toggle Chests Visibility
     chestsCheckbox.MouseButton1Click:Connect(function()
@@ -680,32 +686,17 @@ local function init()
         return
     end
 
-    -- Create the GUI
-    local gui, frame = createGUI()
-
-    -- Function to re-parent the GUI on respawn
-    local function handleRespawn()
-        -- Wait for the new PlayerGui to exist
-        local newPlayerGui = player:WaitForChild("PlayerGui")
-        gui.Parent = newPlayerGui -- Re-parent the GUI
-    end
-
-    -- Handle player respawn
-    player.CharacterAdded:Connect(function()
-        -- Update player position when the character respawns
-        updatePlayerPosition()
-        -- Re-parent the GUI
-        handleRespawn()
-    end)
-
-    -- Handle initial GUI parenting
-    handleRespawn()
-
-    -- Toggle GUI visibility with F15
+    -- Handle F15 keybind to toggle GUI
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if input.KeyCode == CONFIG.TOGGLE_GUI_KEY and not gameProcessed then
-            State.guiVisible = not State.guiVisible
-            frame.Visible = State.guiVisible
+            if State.gui then
+                -- If the GUI exists, destroy it
+                State.gui:Destroy()
+                State.gui = nil
+            else
+                -- If the GUI doesn't exist, create it
+                State.gui = createGUI()
+            end
         end
     end)
 
@@ -738,4 +729,4 @@ end
 -- Start the ESP system
 init()
 print("ESP Script loaded successfully")
-print("Press F15 to open/close the GUI")
+print("Press F15 to toggle the GUI")
