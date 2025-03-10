@@ -15,7 +15,7 @@ end
 local DEFAULT_CONFIG = {
     TOGGLE_GUI_KEY = Enum.KeyCode.F15, -- Key to open/close the GUI
     SCAN_INTERVAL = 5, -- Scan every 5 seconds
-    MIN_DISTANCE = 0, -- Minimum distance for ESP to show (in studs)
+    MIN_DISTANCE = 10, -- Minimum distance for ESP to show (in studs)
     MAX_DISTANCE = 1000, -- Maximum distance for ESP to show (in studs)
     SCAN_KEYBIND = Enum.KeyCode.LeftBracket, -- Key to toggle scanning
     VISIBILITY_KEYBIND = Enum.KeyCode.RightBracket, -- Key to toggle visibility
@@ -31,6 +31,14 @@ local DEFAULT_CONFIG = {
         DARK_SEALED_CHEST = Color3.fromRGB(75, 0, 130), -- Dark purple
         NIMBUS_SEALED_CHEST = Color3.fromRGB(135, 206, 235), -- Sky blue
         GOLDEN = Color3.fromRGB(255, 215, 0) -- Gold color for golden fruits/herbs
+    },
+    -- Default visibility settings for each type of object
+    VISIBILITY_SETTINGS = {
+        CHESTS = true,
+        FRUITS = true,
+        HERBS = true,
+        COCONUTS = true,
+        SHELLS = true
     }
 }
 
@@ -41,7 +49,8 @@ local CONFIG = {
     MIN_DISTANCE = DEFAULT_CONFIG.MIN_DISTANCE,
     MAX_DISTANCE = DEFAULT_CONFIG.MAX_DISTANCE,
     SCAN_KEYBIND = DEFAULT_CONFIG.SCAN_KEYBIND,
-    VISIBILITY_KEYBIND = DEFAULT_CONFIG.VISIBILITY_KEYBIND
+    VISIBILITY_KEYBIND = DEFAULT_CONFIG.VISIBILITY_KEYBIND,
+    VISIBILITY_SETTINGS = DEFAULT_CONFIG.VISIBILITY_SETTINGS
 }
 
 -- State initialization
@@ -133,11 +142,17 @@ local function shouldTrackObject(object)
         return false
     end
     
-    -- Track specific objects
+    -- Track specific objects based on visibility settings
     if objectName:match("chest") or parentName:match("chest") then
-        return true
-    elseif objectName:match("coconut") or objectName:match("fruit") or objectName:match("herb") or objectName:match("shell") then
-        return true
+        return CONFIG.VISIBILITY_SETTINGS.CHESTS
+    elseif objectName:match("coconut") then
+        return CONFIG.VISIBILITY_SETTINGS.COCONUTS
+    elseif objectName:match("fruit") then
+        return CONFIG.VISIBILITY_SETTINGS.FRUITS
+    elseif objectName:match("herb") then
+        return CONFIG.VISIBILITY_SETTINGS.HERBS
+    elseif objectName:match("shell") then
+        return CONFIG.VISIBILITY_SETTINGS.SHELLS
     end
     
     return false
@@ -280,8 +295,8 @@ local function createGUI()
     screenGui.Parent = State.playerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 500, 0, 400) -- Increased height to accommodate new keybind options
-    frame.Position = UDim2.new(0.5, -250, 0.5, -200)
+    frame.Size = UDim2.new(0, 500, 0, 500) -- Increased height to accommodate new checkboxes
+    frame.Position = UDim2.new(0.5, -250, 0.5, -250)
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     frame.BorderSizePixel = 0
     frame.Visible = false
@@ -430,6 +445,57 @@ local function createGUI()
     visibilityKeybindInput.TextSize = 14
     visibilityKeybindInput.Parent = frame
 
+    -- Checkboxes for object visibility
+    local chestsCheckbox = Instance.new("TextButton")
+    chestsCheckbox.Size = UDim2.new(0.4, 0, 0.05, 0)
+    chestsCheckbox.Position = UDim2.new(0.05, 0, 0.8, 0)
+    chestsCheckbox.Text = "Chests: " .. (CONFIG.VISIBILITY_SETTINGS.CHESTS and "ON" or "OFF")
+    chestsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.CHESTS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    chestsCheckbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    chestsCheckbox.Font = Enum.Font.SourceSansBold
+    chestsCheckbox.TextSize = 14
+    chestsCheckbox.Parent = frame
+
+    local fruitsCheckbox = Instance.new("TextButton")
+    fruitsCheckbox.Size = UDim2.new(0.4, 0, 0.05, 0)
+    fruitsCheckbox.Position = UDim2.new(0.05, 0, 0.85, 0)
+    fruitsCheckbox.Text = "Fruits: " .. (CONFIG.VISIBILITY_SETTINGS.FRUITS and "ON" or "OFF")
+    fruitsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.FRUITS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    fruitsCheckbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fruitsCheckbox.Font = Enum.Font.SourceSansBold
+    fruitsCheckbox.TextSize = 14
+    fruitsCheckbox.Parent = frame
+
+    local herbsCheckbox = Instance.new("TextButton")
+    herbsCheckbox.Size = UDim2.new(0.4, 0, 0.05, 0)
+    herbsCheckbox.Position = UDim2.new(0.05, 0, 0.9, 0)
+    herbsCheckbox.Text = "Herbs: " .. (CONFIG.VISIBILITY_SETTINGS.HERBS and "ON" or "OFF")
+    herbsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.HERBS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    herbsCheckbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    herbsCheckbox.Font = Enum.Font.SourceSansBold
+    herbsCheckbox.TextSize = 14
+    herbsCheckbox.Parent = frame
+
+    local coconutsCheckbox = Instance.new("TextButton")
+    coconutsCheckbox.Size = UDim2.new(0.4, 0, 0.05, 0)
+    coconutsCheckbox.Position = UDim2.new(0.05, 0, 0.95, 0)
+    coconutsCheckbox.Text = "Coconuts: " .. (CONFIG.VISIBILITY_SETTINGS.COCONUTS and "ON" or "OFF")
+    coconutsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.COCONUTS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    coconutsCheckbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    coconutsCheckbox.Font = Enum.Font.SourceSansBold
+    coconutsCheckbox.TextSize = 14
+    coconutsCheckbox.Parent = frame
+
+    local shellsCheckbox = Instance.new("TextButton")
+    shellsCheckbox.Size = UDim2.new(0.4, 0, 0.05, 0)
+    shellsCheckbox.Position = UDim2.new(0.55, 0, 0.8, 0)
+    shellsCheckbox.Text = "Shells: " .. (CONFIG.VISIBILITY_SETTINGS.SHELLS and "ON" or "OFF")
+    shellsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.SHELLS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    shellsCheckbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    shellsCheckbox.Font = Enum.Font.SourceSansBold
+    shellsCheckbox.TextSize = 14
+    shellsCheckbox.Parent = frame
+
     -- Toggle scanning (like F15 before)
     scanButton.MouseButton1Click:Connect(function()
         State.scanningEnabled = not State.scanningEnabled
@@ -557,6 +623,51 @@ local function createGUI()
                 adornmentGroup.billboard.Enabled = State.visibilityEnabled
             end
         end
+    end)
+
+    -- Toggle Chests Visibility
+    chestsCheckbox.MouseButton1Click:Connect(function()
+        CONFIG.VISIBILITY_SETTINGS.CHESTS = not CONFIG.VISIBILITY_SETTINGS.CHESTS
+        chestsCheckbox.Text = "Chests: " .. (CONFIG.VISIBILITY_SETTINGS.CHESTS and "ON" or "OFF")
+        chestsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.CHESTS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        clearAllMarkers() -- Clear all markers and rescan
+        startScan()
+    end)
+
+    -- Toggle Fruits Visibility
+    fruitsCheckbox.MouseButton1Click:Connect(function()
+        CONFIG.VISIBILITY_SETTINGS.FRUITS = not CONFIG.VISIBILITY_SETTINGS.FRUITS
+        fruitsCheckbox.Text = "Fruits: " .. (CONFIG.VISIBILITY_SETTINGS.FRUITS and "ON" or "OFF")
+        fruitsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.FRUITS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        clearAllMarkers() -- Clear all markers and rescan
+        startScan()
+    end)
+
+    -- Toggle Herbs Visibility
+    herbsCheckbox.MouseButton1Click:Connect(function()
+        CONFIG.VISIBILITY_SETTINGS.HERBS = not CONFIG.VISIBILITY_SETTINGS.HERBS
+        herbsCheckbox.Text = "Herbs: " .. (CONFIG.VISIBILITY_SETTINGS.HERBS and "ON" or "OFF")
+        herbsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.HERBS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        clearAllMarkers() -- Clear all markers and rescan
+        startScan()
+    end)
+
+    -- Toggle Coconuts Visibility
+    coconutsCheckbox.MouseButton1Click:Connect(function()
+        CONFIG.VISIBILITY_SETTINGS.COCONUTS = not CONFIG.VISIBILITY_SETTINGS.COCONUTS
+        coconutsCheckbox.Text = "Coconuts: " .. (CONFIG.VISIBILITY_SETTINGS.COCONUTS and "ON" or "OFF")
+        coconutsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.COCONUTS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        clearAllMarkers() -- Clear all markers and rescan
+        startScan()
+    end)
+
+    -- Toggle Shells Visibility
+    shellsCheckbox.MouseButton1Click:Connect(function()
+        CONFIG.VISIBILITY_SETTINGS.SHELLS = not CONFIG.VISIBILITY_SETTINGS.SHELLS
+        shellsCheckbox.Text = "Shells: " .. (CONFIG.VISIBILITY_SETTINGS.SHELLS and "ON" or "OFF")
+        shellsCheckbox.BackgroundColor3 = CONFIG.VISIBILITY_SETTINGS.SHELLS and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        clearAllMarkers() -- Clear all markers and rescan
+        startScan()
     end)
 
     return screenGui, frame
