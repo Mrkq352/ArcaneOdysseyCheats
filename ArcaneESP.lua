@@ -159,19 +159,10 @@ local function shouldTrackObject(object)
 end
 
 local function isObjectOpened(object)
-    -- Check for an "Open" child
-    local openValue = object:FindFirstChild("Open")
-    if openValue then
-        -- If it's a BoolValue, check its value
-        if openValue:IsA("BoolValue") then
-            return openValue.Value
-        end
-        -- If it's not a BoolValue, assume the chest is opened if the "Open" child exists
-        return true
-    end
-    -- If no "Open" child is found, assume the chest is closed
-    return false
+    return object:FindFirstChild("Open") ~= nil
 end
+
+
 
 local function createVisualElements(object, color, label)
     if not object or not object.Parent then return end
